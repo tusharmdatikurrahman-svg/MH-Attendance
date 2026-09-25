@@ -164,6 +164,19 @@ class MainActivity : AppCompatActivity() {
         s.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         s.userAgentString = s.userAgentString + " MHPAttendanceApp/1.0"
 
+        // Without these, WebView lays the page out at a fixed ~980px "desktop"
+        // width and then shrinks everything to fit — which is exactly what
+        // caused the site's @media(max-width) mobile CSS to never kick in
+        // (tables running off the right edge, oversized text). This makes
+        // WebView honour the page's own <meta name="viewport"> tag instead.
+        s.useWideViewPort = true
+        s.loadWithOverviewMode = true
+
+        // Enable pinch-to-zoom, but hide the on-screen +/- buttons.
+        s.setSupportZoom(true)
+        s.builtInZoomControls = true
+        s.displayZoomControls = false
+
         CookieManager.getInstance().apply {
             setAcceptCookie(true)
             setAcceptThirdPartyCookies(webView, false)
