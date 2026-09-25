@@ -49,6 +49,30 @@ private const val HOST = "mhpattendancesystem.top"
 private const val PRINT_SHIM =
     "window.print=function(){try{AndroidApp.print();}catch(e){}};"
 
+// The sidebar's "Attendance / HR & Staff / Payroll / ..." sections are plain
+// HTML <details><summary> elements that are supposed to expand on their own
+// with no JavaScript needed. On some devices' System WebView that native
+// open/close behaviour does not fire reliably on a touch tap, so this makes
+// the toggle explicit instead of depending on it. Attached once on the
+// `document` (capture phase) so it works even before the sidebar exists yet,
+// and for any submenu opened later.
+private const val SIDEBAR_TOGGLE_FIX_JS = """
+(function(){
+  if (window.__mhpSidebarFixed) return;
+  window.__mhpSidebarFixed = true;
+  document.addEventListener('click', function(e){
+    var summary = e.target.closest && e.target.closest('.sidebar summary');
+    if (!summary) return;
+    var details = summary.parentElement;
+    if (!details || details.tagName !== 'DETAILS') return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (details.hasAttribute('open')) { details.removeAttribute('open'); }
+    else { details.setAttribute('open',''); }
+  }, true);
+})();
+"""
+
 // Detects which main menu links this user is allowed to see (permission based).
 // Returns 'X' on the login page (no sidebar), otherwise a string like '1101'.
 private const val NAV_JS =
@@ -81,6 +105,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (BuildConfig.DEBUG) {
+            // Lets you plug the phone into a PC and open chrome://inspect in
+            // desktop Chrome to see exactly how the page is being rendered
+            // inside the app — useful for diagnosing layout issues remotely.
+            WebView.setWebContentsDebuggingEnabled(true)
+        }
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
 
@@ -185,6 +215,7 @@ class MainActivity : AppCompatActivity() {
         webView.addJavascriptInterface(PrintBridge(), "AndroidApp")
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
             WebViewCompat.addDocumentStartJavaScript(webView, PRINT_SHIM, setOf(BASE_URL))
+            WebViewCompat.addDocumentStartJavaScript(webView, SIDEBAR_TOGGLE_FIX_JS, setOf(BASE_URL))
         }
 
         webView.webViewClient = object : WebViewClient() {
@@ -205,6 +236,10 @@ class MainActivity : AppCompatActivity() {
                 if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
                     view?.evaluateJavascript(PRINT_SHIM, null)
                 }
+                // Belt-and-suspenders: also (re-)apply the sidebar fix after
+                // every page load, in case the document-start script above
+                // isn't supported on this device's WebView at all.
+                view?.evaluateJavascript(SIDEBAR_TOGGLE_FIX_JS, null)
                 if (!loadFailed) {
                     offline.visibility = View.GONE
                     splash.visibility = View.GONE
