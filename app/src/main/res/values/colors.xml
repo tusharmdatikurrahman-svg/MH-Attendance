@@ -1,0 +1,8 @@
+<resources>
+    <color name="brand">#079BD3</color>
+    <color name="brand_deep">#0578AD</color>
+    <color name="brand_soft">#D6F0FA</color>
+    <color name="bg_light">#EEF8FC</color>
+    <color name="ink">#10243A</color>
+    <color name="muted">#64748B</color>
+</resources>
